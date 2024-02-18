@@ -1,7 +1,18 @@
-const express = require("express");
-const app = express();
-const port = 4000;
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 
-app.listen(port, () => {
-	console.log(`Success! Your application is running on port ${port}.`);
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+io.on('connection', (socket) => {
+  console.log('New client connected');
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
 });
+
+const port = process.env.PORT || 4000;
+server.listen(port, () => console.log(`Listening on port ${port}`));
