@@ -1,1 +1,4 @@
-"# Server" 
+Run 
+`npm install`
+
+`npm start`
