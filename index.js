@@ -23,15 +23,14 @@ const io = socketIo(server, {
 });
 
 io.on('connection', (socket) => {
-    console.log('Client connected');
-  
-    socket.on('disconnect', (reason) => {
-      console.log(`Client disconnected, reason: ${reason}`);
-    });
-  
-    socket.on('error', (error) => {
-      console.error(`Connection error: ${error}`);
-    });
+  console.log('Client connected');
+
+  socket.on('disconnect', (reason) => {
+    console.log(`Client disconnected, reason: ${reason}`);
+  });
+
+  socket.on('error', (error) => {
+    console.error(`Connection error: ${error}`);
   });
 });
 const uri = "mongodb+srv://AppUser:qvRGUENrpuplSpeT@cpsc559project.uhkbb5v.mongodb.net/CPSC559Project?retryWrites=true&w=majority";
