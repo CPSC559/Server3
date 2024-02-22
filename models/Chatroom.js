@@ -2,23 +2,11 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const chatroomSchema = new Schema({
-    _id:{
+    Password: {
         type: String,
         required: true
     },
-    Chatroom: {
-        type: Number,
-        required: true
-    },
-    CurrentUsers: {
-        type: Number,
-        required: true
-    },
-    LastMessage: {
-        type: Date,
-        required: true
-    },
-}, {timestampes: true})
+}, {versionKey: false})
 
 const Chatroom = mongoose.model('Chatroom',chatroomSchema)
 module.exports= Chatroom;
