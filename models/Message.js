@@ -2,10 +2,6 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const messageSchema = new Schema({
-    _id:{
-        type: String,
-        required: true
-    },
     MessageContent:{
       type: String,
       required: true  
@@ -15,14 +11,10 @@ const messageSchema = new Schema({
         required: true
     },
     ChatroomID: {
-        type: Number,
-        required: true
-    },
-    MessageDate: {
-        type: Date,
+        type: String,
         required: true
     }
-}, {timestampes: true})
+}, {timestamps: true, versionKey: false})
 
 const Message = mongoose.model('Message',messageSchema)
 module.exports= Message;
