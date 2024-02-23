@@ -4,6 +4,7 @@ const Chatroom = require("./models/Chatroom");
 const Message = require("./models/Message");
 const http = require("http");
 const socketIo = require("socket.io");
+const chatroomCleanup = require("./chatroomCleanup");
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
@@ -39,6 +40,7 @@ mongoose.connect(uri).then((result) => console.log("connected to db"));
 const port = process.env.PORT || 4000;
 server.listen(port, () => console.log(`Listening on port ${port}`));
 
+chatroomCleanup();
 //Example for how to call the following endpoint http://localhost:4000/chatrooms
 //Endpoint can be used to get all chatrooms
 app.get("/chatrooms", async (req, res) => {
