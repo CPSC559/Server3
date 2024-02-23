@@ -1,9 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const Chatroom = require('./models/Chatroom')
-const Message = require('./models/Message')
+const Chatroom = require('./models/Chatroom');
+const Message = require('./models/Message');
 const http = require('http');
 const socketIo = require('socket.io');
+const chatroomCleanup = require('./chatroomCleanup');
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const cors = require('cors');
@@ -40,6 +41,8 @@ mongoose.connect(uri)
 const port = process.env.PORT || 4000;
 server.listen(port, () => console.log(`Listening on port ${port}`));
 
+chatroomCleanup();
+
 app.get('/chatrooms', async(req,res)=>{
   Chatroom.find({})
   .then((result)=>{
@@ -69,7 +72,7 @@ app.post("/message", async (req,res) =>{
   }
 
 })
-//Example for how to call the following endpoint http://localhost:4000/chatroom?password=coool 
+//Example for how to call the following endpoint http://localhost:4000/chatroom?password=coool
 //Endpoint can be used to create a new chatroom and send data to the db
 app.post("/chatroom", async (req,res) =>{
   try {
