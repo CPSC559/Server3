@@ -6,6 +6,9 @@ const chatroomSchema = new Schema({
         type: String,
         required: true
     },
+    UserPubKeys: {
+        type: [Buffer]
+    }
 }, {versionKey: false})
 
 const Chatroom = mongoose.model('Chatroom',chatroomSchema)
