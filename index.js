@@ -41,7 +41,7 @@ io.on("connection", (socket) => {
       res.status(400).json({ error: error.message });
     }    
   });
-  
+
   socket.on("join_chatroom", async ({ chatroomID, password }) => {
     console.log(`Socket ${socket.id} requesting to join chatroom ${chatroomID} with password`);
 
@@ -49,10 +49,8 @@ io.on("connection", (socket) => {
     try {
       const chatroom = await Chatroom.findOne({ _id: chatroomID });
       if (chatroom && chatroom.Password === password) {
-        // Password is correct, join the chatroom
         socket.join(chatroomID);
         console.log(`Socket ${socket.id} joined chatroom ${chatroomID}`);
-        // Optionally, confirm to the client they have joined the room
         socket.emit("joined_chatroom", { success: true, chatroomID });
       } else {
         // Password is incorrect or chatroom does not exist
