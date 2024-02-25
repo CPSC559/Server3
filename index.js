@@ -82,13 +82,16 @@ app.get("/chatroom/:id/messages", async (req, res) => {
 //Example for how to call the following endpoint http://localhost:4000/message?message=Content&user=Test User&chatroom=65d691acb3615c49d737f639
 //Endpoint can be used to send new message data to the db
 app.post("/message", async (req, res) => {
+  console.log(req.body);
   try {
     const message = await Message.create({
-      MessageContent: req.query.message,
-      User: req.query.user,
-      ChatroomID: req.query.chatroom,
+      CipherText: req.body.encryptedMessage.ciphertext,
+      Nonce: req.body.encryptedMessage.nonce,
+      MAC: req.body.encryptedMessage.mac,
+      User: req.body.publicKey,
+      ChatroomID: req.body.currChatroom,
     });
-    io.to(req.query.chatroom).emit("new_message", message); // Broadcast the new message to the client(s) connected to the chatroom
+    io.to(req.body.chatroom).emit("new_message", message); // Broadcast the new message to the client(s) connected to the chatroom
     res.status(200).json(message);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -106,7 +109,7 @@ app.post("/chatroom", async (req, res) => {
       Password: req.body.password,
       UserPubKeys: [userPubKeyBuffer],
     });
-    res.status(200).json(chatroom.Password);
+    res.status(200).json(chatroom);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
