@@ -9,6 +9,9 @@ const chatroomCleanup = require("./chatroomCleanup");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
 
+//Variable to store socket ID mappings
+const publicKeyToSocketIdMap = {};
+
 const app = express();
 
 //Remove cors
@@ -28,6 +31,11 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected, reason: ${reason}`);
+  });
+  
+  socket.on('register_public_key', (publicKey) => {
+    publicKeyToSocketIdMap[publicKey] = socket.id;
+    console.log("adding public key mapping");
   });
 
   socket.on("error", (error) => {
@@ -86,12 +94,39 @@ app.post("/message", async (req, res) => {
   try {
     const message = await Message.create({
       CipherText: req.body.encryptedMessage.ciphertext,
-      Nonce: req.body.encryptedMessage.nonce,
-      MAC: req.body.encryptedMessage.mac,
+      nonce: req.body.encryptedMessage.nonce,
+      mac: req.body.encryptedMessage.mac,
       User: req.body.publicKey,
       ChatroomID: req.body.currChatroom,
     });
-    io.to(req.body.chatroom).emit("new_message", message); // Broadcast the new message to the client(s) connected to the chatroom
+
+    Chatroom.findOne({ Password: chatroomPassword })
+      .then(chatroom => {
+        if (!chatroom) {
+          return res.status(404).json({ error: 'Chatroom not found' });
+        }
+
+        // Chatroom found, proceed with processing the UserPubKeys
+        const userPubKeys = chatroom.UserPubKeys;
+        // Convert each Buffer to Uint8Array
+        const userPubKeysUint8Arrays = userPubKeys.map(pubKeyBuffer => new Uint8Array(pubKeyBuffer.buffer));
+
+        // Now, you can access each public key by its index
+        // For example, to access the first public key
+        if(userPubKeysUint8Arrays.length > 0) {
+          const firstPubKey = userPubKeysUint8Arrays[0];
+          console.log(firstPubKey); // Uint8Array of the first public key
+        }
+
+        // You can now use these Uint8Array public keys as needed
+
+      })
+      .catch(err => {
+        console.error('Error fetching chatroom:', err);
+        res.status(500).json({ error: 'Internal server error' });
+      });
+    //loop across the recipients and broadcast the message to each of them with the appropriate symmetric key
+    io.to(req.body.currChatroom).emit("new_message", message); // Broadcast the new message to the client(s) connected to the chatroom
     res.status(200).json(message);
   } catch (error) {
     res.status(400).json({ error: error.message });
