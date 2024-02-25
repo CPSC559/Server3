@@ -8,15 +8,15 @@ const messageSchema = new Schema({
     },
     Nonce:{
         type: String,
-        required: true,
+        required: false,
     },
     MAC:{
         type: String,
-        required: true,
+        required: false,
     },
     User: { //this is a public key, representing the user who sent the message
         type: String,
-        required: true
+        required: false
     },
     ChatroomID: {
         type: String,

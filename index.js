@@ -36,6 +36,8 @@ io.on("connection", (socket) => {
   socket.on('register_public_key', (publicKey) => {
     publicKeyToSocketIdMap[publicKey] = socket.id;
     console.log("adding public key mapping");
+    console.log(publicKeyToSocketIdMap[publicKey])
+    console.log(publicKey)
   });
 
   socket.on("error", (error) => {
@@ -92,43 +94,41 @@ app.get("/chatroom/:id/messages", async (req, res) => {
 app.post("/message", async (req, res) => {
   console.log(req.body);
   try {
+
+    //Comment this out for now as it's causing massive type errors
+    /*const userPubKeyBase64 = req.body.publicKey;
+    const userPubKeyBuffer = Buffer.from(userPubKeyBase64, 'base64');
+
+    const nonceBase64 = req.body.encryptedMessage.nonce;
+    const nonceBuffer = Buffer.from(nonceBase64, 'base64');
+
+    const macBase64 = req.body.encryptedMessage.mac;
+    const macBuffer = Buffer.from(macBase64, 'base64');*/
+
     const message = await Message.create({
       CipherText: req.body.encryptedMessage.ciphertext,
-      nonce: req.body.encryptedMessage.nonce,
-      mac: req.body.encryptedMessage.mac,
-      User: req.body.publicKey,
+      /*nonce: nonceBuffer,
+      mac: macBuffer,
+      User: userPubKeyBuffer,*/
       ChatroomID: req.body.currChatroom,
     });
 
-    Chatroom.findOne({ Password: chatroomPassword })
-      .then(chatroom => {
-        if (!chatroom) {
-          return res.status(404).json({ error: 'Chatroom not found' });
-        }
+    req.body.recipients.forEach((keyPair) => {
+      const recipientSocketId = publicKeyToSocketIdMap[keyPair.publicKey];
+      if (recipientSocketId) {
+        // Use Socket.IO to send the message to the recipient's socket
+        io.to(recipientSocketId).emit("new_message", message);
+      } else {
+        console.log(publicKeyToSocketIdMap)
+        console.log(`Recipient with public key ${keyPair.publicKey} not connected.`);
+      }
+    })
+    console.log("Made message");
 
-        // Chatroom found, proceed with processing the UserPubKeys
-        const userPubKeys = chatroom.UserPubKeys;
-        // Convert each Buffer to Uint8Array
-        const userPubKeysUint8Arrays = userPubKeys.map(pubKeyBuffer => new Uint8Array(pubKeyBuffer.buffer));
-
-        // Now, you can access each public key by its index
-        // For example, to access the first public key
-        if(userPubKeysUint8Arrays.length > 0) {
-          const firstPubKey = userPubKeysUint8Arrays[0];
-          console.log(firstPubKey); // Uint8Array of the first public key
-        }
-
-        // You can now use these Uint8Array public keys as needed
-
-      })
-      .catch(err => {
-        console.error('Error fetching chatroom:', err);
-        res.status(500).json({ error: 'Internal server error' });
-      });
     //loop across the recipients and broadcast the message to each of them with the appropriate symmetric key
-    io.to(req.body.currChatroom).emit("new_message", message); // Broadcast the new message to the client(s) connected to the chatroom
     res.status(200).json(message);
   } catch (error) {
+    console.log(error);
     res.status(400).json({ error: error.message });
   }
 });
