@@ -154,12 +154,12 @@ app.post("/chatroom", async (req, res) => {
 //This endpoint can be called to login a user it will take a password as a parameter and either send back the chatroom id
 //or send back a message stating invalid chatroom password
 app.get("/room", async (req, res) => {
-  Chatroom.find({ Password: req.query.password })
+  Chatroom.find({ Password: req.query.password,_id: req.query.id })
     .then((result) => {
       if (result.length === 0) {
         res.send("Invalid Chatroom Password");
       } else {
-        res.send(result[0]._id);
+        res.send(result[0].Password);
       }
     })
     .catch((err) => {
