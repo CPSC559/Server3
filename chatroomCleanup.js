@@ -2,15 +2,28 @@ const cron = require('node-cron');
 const Chatroom = require('./models/Chatroom');
 const Message = require('./models/Message');
 
-module.exports = function chatroomCleanup()
-{
+module.exports = function chatroomCleanup() {
     // Scheduled to run every minute
-    cron.schedule('* * * * *', async () => 
+    cron.schedule('* * * * *', async () =>
     {
         try
         {
             console.log('Cleaning up inactive chatrooms...');
             const chatrooms = await Chatroom.find({});
+            const messages = await Message.find({});
+            
+            // Delete messages associated with chat rooms that no longer exist
+            for (const message of messages)
+            {
+                const chatroomExists = chatrooms.some(chatroom => chatroom._id.toString() === message.ChatroomID);
+                if (!chatroomExists)
+                {
+                    await Message.findByIdAndDelete(message._id);
+                    console.log(`Message ${message._id} was deleted as its chat room no longer exists.`);
+                }
+            }
+
+            // Delete inactive chat rooms
             for (const chatroom of chatrooms)
             {
                 const lastMessage = await Message.findOne({ ChatroomID: chatroom._id }).sort({ createdAt: -1 });
@@ -30,7 +43,7 @@ module.exports = function chatroomCleanup()
         }
         catch (error)
         {
-            console.error('An error occurred while trying to cleanup an old chatroom:', error);
+            console.error('An error occurred while trying to cleanup chatrooms and messages:', error);
         }
     })
 }
