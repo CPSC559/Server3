@@ -15,7 +15,7 @@ module.exports = function chatroomCleanup() {
             // Delete messages associated with chat rooms that no longer exist
             for (const message of messages)
             {
-                const chatroomExists = chatrooms.some(chatroom => chatroom._id.toString() === message.ChatroomID);
+                const chatroomExists = chatrooms.some(chatroom => chatroom.Password === message.ChatroomID);
                 if (!chatroomExists)
                 {
                     await Message.findByIdAndDelete(message._id);
