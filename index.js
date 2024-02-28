@@ -21,7 +21,7 @@ app.use(express.json());
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000", // Allow only the React client to connect
+    origin: ["http://localhost:3000","http://localhost:3006"], // Allow only the React client to connect
     methods: ["GET", "POST"], // Allow only these methods in CORS requests
   },
 });
@@ -34,14 +34,14 @@ io.on("connection", (socket) => {
   });
   
   socket.on('register_public_key', (info) => {
+    console.log(info.publicKey)
     publicKeyToSocketIdMap[info.publicKey] = socket.id;
-    console.log(info.chatroom)
     Chatroom.findOne({ Password: info.chatroom })
       .then((result) => {
         if(result){
-          console.log(result);
           result.UserPubKeys.forEach((key) => {
-            const publicKeyBase64 = key.toString('base64');
+            const publicKeyBase64 = key.toString('ascii');
+            console.log(publicKeyBase64)
             const recipientSocketId = publicKeyToSocketIdMap[publicKeyBase64];
             if (recipientSocketId) {
               // Use Socket.IO to send the message to the recipient's socket
