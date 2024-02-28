@@ -157,10 +157,9 @@ app.post("/chatroom", async (req, res) => {
   console.log(req.body);
   try {
     const userPubKeyBase64 = req.body.userPubKey;
-    const userPubKeyBuffer = Buffer.from(userPubKeyBase64, 'base64');
     const chatroom = await Chatroom.create({
       Password: req.body.password,
-      UserPubKeys: [userPubKeyBuffer],
+      UserPubKeys: [userPubKeyBase64],
     });
     res.status(200).json(chatroom);
   } catch (error) {
@@ -172,25 +171,24 @@ app.post("/chatroom", async (req, res) => {
 //This endpoint can be called to login a user it will take a password as a parameter and either send back the chatroom id
 //or send back a message stating invalid chatroom password
 app.get("/room", async (req, res) => {
-  Chatroom.findOne({ Password: req.query.Password })
+  const publicKey = req.query.publicKey;
+  const password = req.query.Password;
+
+  Chatroom.findOne({ Password: password })
     .then((chatroom) => {
       if (!chatroom) {
         return res.status(400).json({error: "Invalid Chatroom Password"});
       }
 
       // Ensure publicKey is provided
-      if (!req.query.publicKey) {
+      if (!publicKey) {
         return res.status(400).json({error: "Public key is required"});
       }
-
-      // Convert publicKey from a base64 string to a Buffer
-
-      const publicKeyBuffer = Buffer.from(req.query.publicKey, 'base64');
 
       // Add the publicKey to the UserPubKeys array
       Chatroom.updateOne(
         { _id: chatroom._id },
-        { $addToSet: { UserPubKeys: publicKeyBuffer } }
+        { $addToSet: { UserPubKeys: publicKey } }
       )
       .then(updateResult => {
         res.status(200).json({password: chatroom.Password});
