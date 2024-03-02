@@ -26,11 +26,12 @@ module.exports = function chatroomCleanup() {
             // Delete inactive chat rooms
             for (const chatroom of chatrooms)
             {
-                const lastMessage = await Message.findOne({ ChatroomID: chatroom._id }).sort({ createdAt: -1 });
+                const lastMessage = await Message.findOne({ ChatroomID: chatroom.Password }).sort({ createdAt: -1 });
                 if (lastMessage)
                 {
                     const timeDifference = Date.now() - lastMessage.createdAt.getTime();
                     const minutesDifference = Math.floor(timeDifference / (1000 * 60));
+
                     if (minutesDifference > 10)
                     {
                         // Delete chatroom if the last message is from more than 10 minutes ago
