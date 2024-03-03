@@ -5,6 +5,7 @@ const Message = require("./models/Message");
 const http = require("http");
 const socketIo = require("socket.io");
 const chatroomCleanup = require("./chatroomCleanup");
+const serializationUtils = require("./serializationUtils");
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
@@ -21,7 +22,7 @@ app.use(express.json());
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:3000","http://localhost:3006"], // Allow only the React client to connect
+    origin: ["http://localhost:3000", "http://localhost:3006"], // Allow only the React client to connect
     methods: ["GET", "POST"], // Allow only these methods in CORS requests
   },
 });
@@ -32,30 +33,29 @@ io.on("connection", (socket) => {
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected, reason: ${reason}`);
   });
-  
-  socket.on('register_public_key', (info) => {
-    console.log(info.publicKey)
+
+  socket.on("register_public_key", (info) => {
+    console.log(info.publicKey);
     publicKeyToSocketIdMap[info.publicKey] = socket.id;
-    Chatroom.findOne({ Password: info.chatroom })
-      .then((result) => {
-        if(result){
-          result.UserPubKeys.forEach((key) => {
-            const publicKeyBase64 = key.toString('ascii');
-            console.log(publicKeyBase64)
-            const recipientSocketId = publicKeyToSocketIdMap[publicKeyBase64];
-            if (recipientSocketId) {
-              // Use Socket.IO to send the message to the recipient's socket
-              io.to(recipientSocketId).emit("new_public_keys", {publicKeys: result.UserPubKeys});
-            } else {
-              console.log(publicKeyToSocketIdMap)
-              console.log(`Recipient with public key ${key} not connected.`);
-            }
-          })
-        }
-        else{
-          console.log("No result")
-        }
-      })
+    Chatroom.findOne({ Password: info.chatroom }).then((result) => {
+      if (result) {
+        result.UserPubKeys.forEach((key) => {
+          console.log(key);
+          const recipientSocketId = publicKeyToSocketIdMap[key];
+          if (recipientSocketId) {
+            // Use Socket.IO to send the message to the recipient's socket
+            io.to(recipientSocketId).emit("new_public_keys", {
+              publicKeys: result.UserPubKeys,
+            });
+          } else {
+            console.log(publicKeyToSocketIdMap);
+            console.log(`Recipient with public key ${key} not connected.`);
+          }
+        });
+      } else {
+        console.log("No result");
+      }
+    });
   });
 
   socket.on("error", (error) => {
@@ -112,35 +112,34 @@ app.get("/chatroom/:id/messages", async (req, res) => {
 app.post("/message", async (req, res) => {
   console.log(req.body);
   try {
-
-    //Comment this out for now as it's causing massive type errors
-    /*const userPubKeyBase64 = req.body.publicKey;
-    const userPubKeyBuffer = Buffer.from(userPubKeyBase64, 'base64');
-
-    const nonceBase64 = req.body.encryptedMessage.nonce;
-    const nonceBuffer = Buffer.from(nonceBase64, 'base64');
-
-    const macBase64 = req.body.encryptedMessage.mac;
-    const macBuffer = Buffer.from(macBase64, 'base64');*/
+    const serializedEncryptedMessage = req.body.cipher;
+    const serializedRecipients = req.body.recipients;
 
     const message = await Message.create({
-      CipherText: req.body.encryptedMessage.ciphertext,
-      /*nonce: nonceBuffer,
-      mac: macBuffer,
-      User: userPubKeyBuffer,*/
+      Cipher: serializedEncryptedMessage,
+      // sender should be inferred through socket, what happens if sender pretends to be someone else?
+      Sender: req.body.senderBase64PublicKey,
       ChatroomID: req.body.currChatroom,
     });
 
-    req.body.recipients.forEach((keyPair) => {
-      const recipientSocketId = publicKeyToSocketIdMap[keyPair.publicKey];
+    const recipients =
+      serializationUtils.deserializeUint8ArrayObject(serializedRecipients);
+
+    Object.entries(recipients).forEach(([publicKey, encryptedSymmetricKey]) => {
+      const serializedEncryptedSymmetricKey =
+        serializationUtils.serializeUint8ArrayObject(encryptedSymmetricKey);
+      const recipientSocketId = publicKeyToSocketIdMap[publicKey];
       if (recipientSocketId) {
         // Use Socket.IO to send the message to the recipient's socket
-        io.to(recipientSocketId).emit("new_message", message);
+        io.to(recipientSocketId).emit("new_message", {
+          serializedEncryptedMessage,
+          serializedEncryptedSymmetricKey,
+        });
       } else {
-        console.log(publicKeyToSocketIdMap)
-        console.log(`Recipient with public key ${keyPair.publicKey} not connected.`);
+        console.log(publicKeyToSocketIdMap);
+        console.log(`Recipient with public key ${publicKey} not connected.`);
       }
-    })
+    });
     console.log("Made message");
 
     //loop across the recipients and broadcast the message to each of them with the appropriate symmetric key
@@ -156,10 +155,9 @@ app.post("/message", async (req, res) => {
 app.post("/chatroom", async (req, res) => {
   console.log(req.body);
   try {
-    const userPubKeyBase64 = req.body.userPubKey;
     const chatroom = await Chatroom.create({
       Password: req.body.password,
-      UserPubKeys: [userPubKeyBase64],
+      UserPubKeys: [req.body.userPubKey],
     });
     res.status(200).json(chatroom);
   } catch (error) {
@@ -177,12 +175,12 @@ app.get("/room", async (req, res) => {
   Chatroom.findOne({ Password: password })
     .then((chatroom) => {
       if (!chatroom) {
-        return res.status(400).json({error: "Invalid Chatroom Password"});
+        return res.status(400).json({ error: "Invalid Chatroom Password" });
       }
 
       // Ensure publicKey is provided
       if (!publicKey) {
-        return res.status(400).json({error: "Public key is required"});
+        return res.status(400).json({ error: "Public key is required" });
       }
 
       // Add the publicKey to the UserPubKeys array
@@ -190,16 +188,16 @@ app.get("/room", async (req, res) => {
         { _id: chatroom._id },
         { $addToSet: { UserPubKeys: publicKey } }
       )
-      .then(updateResult => {
-        res.status(200).json({password: chatroom.Password});
-      })
-      .catch(updateError => {
-        console.error(updateError);
-        res.status(500).json({error: "Failed to add user public key"});
-      });
+        .then((updateResult) => {
+          res.status(200).json({ password: chatroom.Password });
+        })
+        .catch((updateError) => {
+          console.error(updateError);
+          res.status(500).json({ error: "Failed to add user public key" });
+        });
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).json({error: "An error occurred"});
+      res.status(500).json({ error: "An error occurred" });
     });
 });
