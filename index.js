@@ -64,7 +64,7 @@ io.on("connection", (socket) => {
 });
 
 const uri =
-  "mongodb+srv://AppUser:qvRGUENrpuplSpeT@cpsc559project.uhkbb5v.mongodb.net/CPSC559Project?retryWrites=true&w=majority";
+  "mongodb+srv://AppUser:3oilIo0ZWs6YIH6F@server3.wwj5xnt.mongodb.net/?retryWrites=true&w=majority&appName=Server3";
 
 mongoose.connect(uri).then((result) => console.log("connected to db"));
 const port = process.env.PORT || 4000;
