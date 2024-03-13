@@ -30,6 +30,11 @@ const io = socketIo(server, {
 io.on("connection", (socket) => {
   console.log("Client connected");
 
+  socket.on("ping", () => {
+    console.log("Received ping from client. Sending pong...");
+    socket.emit("pong");
+  });
+
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected, reason: ${reason}`);
   });
@@ -67,7 +72,7 @@ const uri =
   "mongodb+srv://AppUser:3oilIo0ZWs6YIH6F@server3.wwj5xnt.mongodb.net/?retryWrites=true&w=majority&appName=Server3";
 
 mongoose.connect(uri).then((result) => console.log("connected to db"));
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 4002;
 server.listen(port, () => console.log(`Listening on port ${port}`));
 
 chatroomCleanup();
