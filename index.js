@@ -20,12 +20,24 @@ const chatroomIndices = {};
 const app = express();
 
 const otherServers = ["http://localhost:4000", "http://localhost:4001"];
+const otherIds = [4000,4001]
+const id = 4002;
+var leader=0;
 
 //Remove cors
 app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
+leader=id;
+otherServers.forEach((server) => {
+  const response = axios.post(`${server}/leader`, {
+      leader: leader
+  }).catch((error) => {
+    console.error(`Failed to send message to server: ${server}`, error);
+    leader = id;
+  });
+});
 const io = socketIo(server, {
   cors: {
     origin: ["http://localhost:3000", "http://localhost:3006"], // Allow only the React client to connect
@@ -35,7 +47,15 @@ const io = socketIo(server, {
 
 io.on("connection", (socket) => {
   console.log("Client connected");
-
+  leader=id;
+  otherServers.forEach((server) => {
+    const response = axios.post(`${server}/leader`, {
+        leader: leader
+    }).catch((error) => {
+      console.error(`Failed to send message to server: ${server}`, error);
+      leader = id;
+    });
+  })
   socket.on("ping", () => {
     console.log("Received ping from client. Sending pong...");
     socket.emit("pong");
@@ -94,6 +114,23 @@ const generateColor = (publicKey) => {
 
   return `hsl(${hue}, 70%, 86%)`;
 };
+
+app.get("/election",  async (req, res) => {
+   mid = req.body.id 
+   if (mid<id)
+   {
+    res.send("Ok")
+   }
+   else{
+    io.disconnectSockets();
+   }
+});
+
+app.get("/leader",  async (req, res) => {
+  lead = req.body.leader 
+  leader= lead;
+  io.disconnectSockets();
+});
 
 //Example for how to call the following endpoint http://localhost:4000/chatrooms
 //Endpoint can be used to get all chatrooms
