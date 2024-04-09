@@ -137,6 +137,9 @@ function generateIndexFromHash(hash, dictionarySize) {
   return hash % dictionarySize;
 }
 
+//GenerateUserName function is used to create a unique anonymous username 
+//from the users defined public key (Note this is not an entirely unique name that is generated
+//and has something like a 1 in 42000 chance to match but that is very unlikely so has been left with those odds for this project)
 const generateUserName = (publicKey) => {
   const hashCode = publicKey.split("").reduce((a, b) => {
     a = (a << 5) - a + b.charCodeAt(0);
@@ -228,13 +231,14 @@ app.post("/message", async (req, res) => {
 
     const message = await Message.create({
       Cipher: serializedEncryptedMessage,
-      // sender should be inferred through socket
       Sender: senderBase64PublicKey,
       ChatroomID: req.body.currChatroom,
       MessageIndex: chatroomIndices[req.body.currChatroom]
     });
 
     //If the message came from the client, lets forward the message to each other server
+    //Note if server send fails we do not remove from the pool attempting to send messages is fine and when the server comes back online
+    //the sends will function as standard again
     if (req.body?.fromClient) {
       otherServers.forEach((server) => {
         axios
