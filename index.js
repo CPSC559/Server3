@@ -20,17 +20,21 @@ const chatroomIndices = {};
 
 const app = express();
 
+//list of other servers to send updates to
 const otherServers = ["http://localhost:4000", "http://localhost:4001"];
-const otherIds = [4000,4001]
+//Process id assigned static by default
 const id = 4002;
+//Leader is set to zero but upon server 3 starting it will become the leader
 var leader=0;
 
-//Remove cors
+
 app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
+//Assign server 3 leader id will default to leader in any circumstances where it starts
 leader=id;
+//Send leader message to other servers
 otherServers.forEach((server) => {
   const response = axios.post(`${server}/leader`, {
       leader: leader
@@ -39,6 +43,7 @@ otherServers.forEach((server) => {
     leader = id;
   });
 });
+//Setup server socket connection and allow only certain origins
 const io = socketIo(server, {
   cors: {
     origin: ["http://localhost:3000", "http://localhost:3006"], // Allow only the React client to connect
@@ -46,9 +51,12 @@ const io = socketIo(server, {
   },
 });
 
+//On socket connection
 io.on("connection", (socket) => {
   console.log("Client connected");
+  //Make sure leader is set to server 3
   leader=id;
+  //Broadcast leader message to other servers
   otherServers.forEach((server) => {
     const response = axios.post(`${server}/leader`, {
         leader: leader
@@ -57,20 +65,24 @@ io.on("connection", (socket) => {
       leader = id;
     });
   })
+  //Heartbeat message achieved with ping messages client will change servers if this ping times out indicating server failure
   socket.on("ping", () => {
     console.log("Received ping from client. Sending pong...");
     socket.emit("pong");
   });
-
+  //When disconnect console log message
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected, reason: ${reason}`);
   });
-
+  //Register public key is a unique message that has the following behavior defined for when the socket receives the message
   socket.on("register_public_key", (info) => {
     console.log(info.publicKey);
+    //Add the socket id to the public key mapping list
     publicKeyToSocketIdMap[info.publicKey] = socket.id;
+    //Find the chatroom that the user has logged into then 
     Chatroom.findOne({ Password: info.chatroom }).then((result) => {
       if (result) {
+        //Broadcast the socket ID mapping to all other connected clients in the chatroom to ensure they will encrypt messages for new user in mind as well
         result.UserPubKeys.forEach((key) => {
           console.log(key);
           const recipientSocketId = publicKeyToSocketIdMap[key];
@@ -94,10 +106,10 @@ io.on("connection", (socket) => {
     console.error(`Connection error: ${error}`);
   });
 });
-
+//Mongoose URI to ensure connection to server 3 database
 const uri =
 "mongodb+srv://AppUser:3oilIo0ZWs6YIH6F@server3.wwj5xnt.mongodb.net/?retryWrites=true&w=majority&appName=Server3";
-
+//Connect the server to the mongodb instance then set the server to listen on port 4002
 mongoose.connect(uri).then((result) => console.log("connected to db"));
 const port = process.env.PORT || 4002;
 server.listen(port, () => console.log(`Listening on port ${port}`));
@@ -139,18 +151,29 @@ const generateUserName = (publicKey) => {
   // Combine and format the words to form the username
   return `${adjective.charAt(0).toUpperCase() + adjective.slice(1)}${animal.charAt(0).toUpperCase() + animal.slice(1)}`;
 }
-
+//Election endpoint implementation kept relatively consistent across endpoints but server 3 should never encounter an id higher then it.
 app.post("/election",  async (req, res) => {
+  //Take sending message id then see if it is higher then the process id
    mid = req.body.id 
    if (mid<id)
    {
+    //Since all other servers are lower then server 3 it will try to broadcast leader message to all servers
+    otherServers.forEach((server) => {
+      const response = axios.post(`${server}/leader`, {
+          leader: leader
+      }).catch((error) => {
+        console.error(`Failed to send message to server: ${server}`, error);
+        leader = id;
+      });
+    });
     res.send("Ok")
    }
    else{
+    //If the other server has a higher id must disconnect from the socket to allow for new leader connection
     io.disconnectSockets();
    }
 });
-
+//Set new leader id and disconnect socket if there were any connections to move them to the new leader
 app.post("/leader",  async (req, res) => {
   lead = req.body.leader 
   leader= lead;
@@ -205,7 +228,7 @@ app.post("/message", async (req, res) => {
 
     const message = await Message.create({
       Cipher: serializedEncryptedMessage,
-      // sender should be inferred through socket, what happens if sender pretends to be someone else?
+      // sender should be inferred through socket
       Sender: senderBase64PublicKey,
       ChatroomID: req.body.currChatroom,
       MessageIndex: chatroomIndices[req.body.currChatroom]
