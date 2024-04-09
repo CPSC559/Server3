@@ -140,7 +140,7 @@ const generateUserName = (publicKey) => {
   return `${adjective.charAt(0).toUpperCase() + adjective.slice(1)}${animal.charAt(0).toUpperCase() + animal.slice(1)}`;
 }
 
-app.get("/election",  async (req, res) => {
+app.post("/election",  async (req, res) => {
    mid = req.body.id 
    if (mid<id)
    {
@@ -151,7 +151,7 @@ app.get("/election",  async (req, res) => {
    }
 });
 
-app.get("/leader",  async (req, res) => {
+app.post("/leader",  async (req, res) => {
   lead = req.body.leader 
   leader= lead;
   io.disconnectSockets();
